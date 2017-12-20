@@ -1,0 +1,220 @@
+---
+title: "Data Science Application"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    theme: flatly
+
+#YAML configuration
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(tree)
+```
+
+Sidebar {.sidebar}
+===
+
+```{r}
+fileInput(inputId = "metadata",label = "Please Upload a CSV File")
+```
+
+Summary
+===
+
+
+Row
+---
+
+###Preview of the File
+
+```{r}
+tableOutput("data_preview")
+```
+
+
+```{r}
+observe({
+  if(is.null(input$metadata))
+    return(NULL)
+  data = read.csv(input$metadata$datapath)
+  output$data_preview = renderTable(head(data))
+  
+  checknum = sapply(data,is.numeric)
+  numcol = names(data)[checknum]
+  catcol = names(data)[!checknum]
+  
+  output$colnames = renderTable(names(data))
+  output$numericcols = renderTable(numcol)
+  output$categcols = renderTable(catcol)
+  
+  output$dropdown = renderUI(selectInput(inputId = "select_column",label = "Select a column",choices = names(data)))
+  output$ddnumeric = renderUI({selectInput(inputId = "select_numeric",label = "Select a column", choices = numcol,multiple = TRUE,selected = numcol[1])})
+  output$ddcateg = renderUI({selectInput(inputId = "select_categ",label = "Select a column", choices = catcol)})
+  
+  output$boxplot = renderPlot({boxplot(data[,input$select_numeric])})
+  
+  output$hist = renderPlot({hist(data[,input$select_numeric])})
+  
+  output$freq_category = renderPlot({
+    items_freq = data %>% group_by_(input$select_categ) %>% summarise(count_item=n()) %>% arrange(-count_item) %>% head(5)
+    ggplot(items_freq,aes_string(x=input$select_categ,y="count_item"))+geom_bar(stat="identity")
+  })
+  
+  output$scatterplot = renderPlot({
+     plot(data[,input$select_numeric])
+   })
+  
+  output$cluster_table=renderTable({
+   data_num=data[,numcol]
+   fit=kmeans(na.omit(data_num), centers = input$n_cluster)
+   table(fit$cluster)
+ })
+ 
+ output$cluster_slider=renderUI({
+   sliderInput(inputId = "n_cluster",label="choose number of clusters",min=1,max=15,value=5)
+ })
+  
+ output$dec_input = renderUI({
+   selectInput(inputId = "dep_var",label = "Select input variable",choices = names(data))
+ })
+ 
+ output$dec_target = renderUI({
+   selectInput(inputId = "indep_var",label = "Select output variable",choices = names(data),multiple = TRUE)
+ })
+ 
+  output$dtree = renderPlot({
+       target = input$dep_var
+       inputs = paste (input$indep_var, collapse = '+')
+       fit_eqn = paste(target ,'~', inputs)
+       dtree = tree(fit_eqn,data)
+       plot(dtree)
+       text(dtree)
+     })  
+  
+})
+  
+  
+
+  
+```
+
+Row
+---
+
+###Column Names
+```{r}
+tableOutput("colnames")
+```
+
+###Numerical Columns
+```{r}
+tableOutput("numericcols")
+```
+
+###Categorical Columns
+```{r}
+tableOutput("categcols")
+```
+
+Numerical Columns
+===
+
+Row {data-height=300}
+---
+
+###Dropdowns
+```{r}
+uiOutput("ddnumeric")
+```
+
+###Scatterplot
+```{r}
+plotOutput("scatterplot")
+```
+
+Row
+---
+
+###Histogram
+
+```{r}
+plotOutput("hist")
+```
+
+###Boxplot
+```{r}
+plotOutput("boxplot")
+```
+
+
+
+
+Categorical Columns
+===
+
+Row {data-height = 300}
+---
+
+###Dropdowns
+```{r}
+uiOutput("ddcateg")
+```
+
+Row
+---
+
+###Frequency Distribution
+
+```{r}
+plotOutput("freq_category")
+```
+
+K-Nearest Neighbours
+===
+
+Row
+---
+###Selecting number of centres
+```{r}
+uiOutput("cluster_slider")
+```
+
+###Cluster Table
+```{r}
+tableOutput("cluster_table")
+```
+
+Decision Tree
+===
+
+Row
+---
+###Prediction Label
+```{r}
+uiOutput("dec_input")
+```
+
+###Predictors
+```{r}
+uiOutput("dec_target")
+```
+
+
+Row
+---
+
+###Plot
+```{r}
+plotOutput("dtree")
+```
+
+
+fit = tree(fit_equ,data= data)
+plot(fit)
+text(fit)
